@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lịch Khám Thai</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    color: #1a1a1a;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .container { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #666; margin-bottom: 16px; }
+  .card-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
+  .field input, .field select {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid #d1d5db; border-radius: 7px;
+    background: #fff; color: #1a1a1a;
+    font-size: 13px; font-family: inherit;
+    outline: none; transition: border 0.15s;
+  }
+  .field input:focus, .field select:focus { border-color: #7c6ff7; }
+  .btn {
+    width: 100%; padding: 10px; margin-top: 12px;
+    background: #7c6ff7; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn:hover { background: #6458e0; }
+  .err { font-size: 12px; color: #dc2626; margin-top: 6px; }
+  .result-info {
+    background: #f0eeff; border: 1px solid #c4b5fd;
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
+    font-size: 13px; color: #4c3d9e;
+  }
+  .result-info strong { font-weight: 600; }
+  .timeline { display: flex; flex-direction: column; }
+  .t-item { display: flex; gap: 12px; margin-bottom: 2px; }
+  .t-left { display: flex; flex-direction: column; align-items: center; width: 28px; flex-shrink: 0; padding-top: 2px; }
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .t-line { width: 1.5px; background: #e5e7eb; flex: 1; min-height: 10px; margin-top: 3px; }
+  .t-item:last-child .t-line { display: none; }
+  .t-card {
+    background: #fff; border: 1px solid #e5e7eb;
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; flex: 1;
+  }
+  .t-card.past { opacity: 0.5; }
+  .t-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 3px; }
+  .t-title { font-size: 13px; font-weight: 600; color: #1a1a1a; flex: 1; }
+  .wk-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  }
+  .t-date { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .t-desc { font-size: 12px; color: #555; line-height: 1.5; }
+  .today-tag {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    background: #fef2f2; color: #dc2626; padding: 1px 6px;
+    border-radius: 10px; margin-left: 5px; vertical-align: middle;
+  }
+  #result { display: none; }
+
+  /* color dots & badges */
+  .c-green { background: #16a34a; }
+  .c-blue { background: #2563eb; }
+  .c-purple { background: #7c3aed; }
+  .c-amber { background: #d97706; }
+  .c-red { background: #dc2626; }
+  .b-green { background: #dcfce7; color: #15803d; }
+  .b-blue { background: #dbeafe; color: #1d4ed8; }
+  .b-purple { background: #ede9fe; color: #6d28d9; }
+  .b-amber { background: #fef3c7; color: #92400e; }
+  .b-red { background: #fee2e2; color: #b91c1c; }
+
+  @media (max-width: 480px) {
+    .inputs { grid-template-columns: 1fr; }
+    body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🩺 Lịch khám thai</h1>
+  <p class="sub">Công cụ tính lịch khám thai và các mốc quan trọng trong thai kỳ</p>
+
+  <div class="card-box">
+    <div class="inputs">
+      <div class="field">
+        <label>Cách tính</label>
+        <select id="mode" onchange="toggleMode()">
+          <option value="due">Ngày dự sinh</option>
+          <option value="lmp">Ngày kinh cuối (LMP)</option>
+        </select>
+      </div>
+      <div class="field" id="date-field">
+        <label id="date-label">Ngày dự sinh</label>
+        <input type="text" id="date-input" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDateInput(this)" />
+      </div>
+      <div class="field" id="cycle-field" style="display:none">
+        <label>Chu kỳ kinh (ngày)</label>
+        <input type="number" id="cycle" value="28" min="21" max="45" />
+      </div>
+      <div class="field">
+        <label>Loại thai</label>
+        <select id="type">
+          <option value="don">Đơn thai</option>
+          <option value="doi">Song thai</option>
+        </select>
+      </div>
+    </div>
+    <div class="err" id="err-msg"></div>
+    <button class="btn" onclick="calculate()">Tính lịch khám thai →</button>
+  </div>
+
+  <div id="result">
+    <div class="result-info" id="result-info"></div>
+    <div class="timeline" id="timeline"></div>
+  </div>
+</div>
+
+<script>
+function toggleMode() {
+  var mode = document.getElementById('mode').value;
+  document.getElementById('date-label').textContent = mode === 'lmp' ? 'Ngày kinh cuối' : 'Ngày dự sinh';
+  document.getElementById('cycle-field').style.display = mode === 'lmp' ? '' : 'none';
+  document.getElementById('date-input').value = '';
+  document.getElementById('err-msg').textContent = '';
+}
+
+function formatDateInput(el) {
+  var v = el.value.replace(/\D/g, '');
+  if (v.length > 8) v = v.slice(0, 8);
+  var out = '';
+  if (v.length > 4) out = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+  else if (v.length > 2) out = v.slice(0,2) + '/' + v.slice(2);
+  else out = v;
+  el.value = out;
+}
+
+function parseDate(str) {
+  var parts = str.split('/');
+  if (parts.length !== 3) return null;
+  var d = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  var y = parseInt(parts[2], 10);
+  if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+  if (y < 100) return null;
+  if (m < 1 || m > 12) return null;
+  if (d < 1 || d > 31) return null;
+  var date = new Date(y, m - 1, d);
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+  return date;
+}
+
+function addDays(d, n) { var r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+function fmtShort(d) { return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }); }
+function fmtFull(d) { return d.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' }); }
+
+var M_DON = [
+  { week:6,  dot:'c-green',  badge:'b-green',  title:'Siêu âm xác nhận thai', desc:'Siêu âm lần đầu xác nhận thai trong tử cung, nghe tim thai, loại trừ thai ngoài tử cung.' },
+  { week:10, dot:'c-blue',   badge:'b-blue',   title:'Khám thai & xét nghiệm đầu kỳ', desc:'Xét nghiệm máu tổng quát, nhóm máu, viêm gan B, HIV, Rubella, giang mai. Bắt đầu uống acid folic, sắt.' },
+  { week:11, dot:'c-purple', badge:'b-purple', title:'Siêu âm đo độ mờ da gáy (NT)', desc:'Sàng lọc hội chứng Down và các bất thường NST. Thực hiện trong 11 tuần 0 ngày – 13 tuần 6 ngày.' },
+  { week:12, dot:'c-amber',  badge:'b-amber',  title:'Xét nghiệm NIPT / Double test', desc:'Sàng lọc trước sinh không xâm lấn. Double test (beta-hCG, PAPP-A) hoặc NIPT để đánh giá nguy cơ NST.' },
+  { week:16, dot:'c-green',  badge:'b-green',  title:'Khám thai định kỳ', desc:'Theo dõi cân nặng, huyết áp, đo bề cao tử cung. Xét nghiệm nước tiểu. Triple test nếu chưa làm NIPT.' },
+  { week:20, dot:'c-blue',   badge:'b-blue',   title:'Siêu âm hình thái thai nhi', desc:'Khảo sát toàn diện hình thái thai nhi: não, tim, các tạng, chi, cột sống. Mốc siêu âm quan trọng nhất tam cá nguyệt 2.' },
+  { week:22, dot:'c-purple', badge:'b-purple', title:'Siêu âm tim thai nhi', desc:'Siêu âm tim chi tiết nếu có nguy cơ dị tật tim bẩm sinh hoặc bất thường phát hiện ở mốc 20 tuần.' },
+  { week:24, dot:'c-amber',  badge:'b-amber',  title:'Xét nghiệm tiểu đường thai kỳ (GCT)', desc:'Uống 50g glucose, xét nghiệm đường huyết sau 1 giờ. Nếu dương tính → làm nghiệm pháp dung nạp glucose (GTT).' },
+  { week:28, dot:'c-green',  badge:'b-green',  title:'Khám thai tam cá nguyệt 3', desc:'Siêu âm theo dõi tăng trưởng thai, kiểm tra ngôi thai, ối, bánh rau. Xét nghiệm máu lần 2, tiêm phòng uốn ván.' },
+  { week:30, dot:'c-blue',   badge:'b-blue',   title:'Siêu âm tăng trưởng + Doppler', desc:'Đánh giá tăng trưởng, ngôi thai, nước ối, bánh rau, Doppler động mạch rốn và não giữa.' },
+  { week:32, dot:'c-purple', badge:'b-purple', title:'Khám thai định kỳ', desc:'Theo dõi huyết áp, protein niệu, tầm soát tiền sản giật. Siêu âm đánh giá ngôi thai, ước tính cân nặng thai.' },
+  { week:34, dot:'c-amber',  badge:'b-amber',  title:'Tiêm phòng ho gà (Tdap)', desc:'Tiêm vaccine Tdap (bạch hầu - uốn ván - ho gà) để bảo vệ trẻ sơ sinh. Khám thai định kỳ.' },
+  { week:36, dot:'c-green',  badge:'b-green',  title:'Siêu âm & khám tiền sinh', desc:'Siêu âm xác định ngôi thai, trọng lượng ước tính, đánh giá khung chậu. Cấy dịch âm đạo liên cầu nhóm B (GBS).' },
+  { week:38, dot:'c-red',    badge:'b-red',    title:'Khám sát ngày sinh', desc:'Theo dõi tim thai (monitoring), đánh giá cổ tử cung, thảo luận kế hoạch sinh. Khám mỗi tuần từ đây.' },
+  { week:39, dot:'c-red',    badge:'b-red',    title:'Khám trước sinh', desc:'Monitoring, kiểm tra cử động thai, cổ tử cung. Tư vấn dấu hiệu chuyển dạ.' },
+  { week:40, dot:'c-red',    badge:'b-red',    title:'Ngày dự sinh', desc:'Ngày dự sinh theo tính toán. Nếu chưa có dấu hiệu chuyển dạ, bác sĩ sẽ theo dõi sát và tư vấn can thiệp nếu cần.' },
+  { week:41, dot:'c-red',    badge:'b-red',    title:'Thai quá ngày', desc:'Theo dõi sát tim thai, cử động thai, lượng ối. Thảo luận khởi phát chuyển dạ nếu thai >41 tuần.' },
+];
+
+var M_DOI = [
+  { week:6,  dot:'c-green',  badge:'b-green',  title:'Siêu âm xác nhận song thai', desc:'Xác nhận số thai, màng ối, xác định loại song thai (MCDA, DCDA). Rất quan trọng để phân loại nguy cơ.' },
+  { week:11, dot:'c-purple', badge:'b-purple', title:'Siêu âm NT + phân loại song thai', desc:'Đo độ mờ da gáy từng thai, khảo sát màng ngăn, xác định MCDA hay DCDA. Xét nghiệm NIPT/Double test.' },
+  { week:16, dot:'c-blue',   badge:'b-blue',   title:'Siêu âm theo dõi tăng trưởng', desc:'Song thai MCDA: siêu âm 2 tuần/lần từ tuần 16. DCDA: 4 tuần/lần. Theo dõi chênh lệch trọng lượng 2 thai.' },
+  { week:20, dot:'c-blue',   badge:'b-blue',   title:'Siêu âm hình thái 2 thai', desc:'Khảo sát hình thái toàn diện cả hai thai. Siêu âm tim thai nếu cần. Đánh giá nước ối từng buồng.' },
+  { week:24, dot:'c-amber',  badge:'b-amber',  title:'Xét nghiệm tiểu đường + tầm soát đẻ non', desc:'Test đường huyết. Đo chiều dài cổ tử cung tầm soát nguy cơ đẻ non. Progesterone nếu cần.' },
+  { week:28, dot:'c-green',  badge:'b-green',  title:'Siêu âm tăng trưởng + Doppler', desc:'Doppler động mạch rốn và não giữa từng thai. Kiểm tra chênh lệch ước cân (>20% đáng lo). Monitoring nếu cần.' },
+  { week:32, dot:'c-purple', badge:'b-purple', title:'Siêu âm & lên kế hoạch sinh', desc:'Đánh giá ngôi thai, trọng lượng ước tính, điều kiện sinh thường hay mổ. Song thai MCDA: thường sinh 36-37 tuần.' },
+  { week:34, dot:'c-amber',  badge:'b-amber',  title:'Tiêm phòng Tdap + tư vấn corticoid', desc:'Tư vấn tiêm corticoid trưởng thành phổi thai nhi nếu có nguy cơ sinh non. Theo dõi sát hơn.' },
+  { week:36, dot:'c-red',    badge:'b-red',    title:'Chuẩn bị sinh song thai', desc:'DCDA: tư vấn sinh từ 37-38 tuần. MCDA: 36-37 tuần. GBS, monitoring, kế hoạch sinh chi tiết.' },
+  { week:38, dot:'c-red',    badge:'b-red',    title:'Ngày dự sinh song thai', desc:'Song thai thường sinh sớm hơn đơn thai. Đa số được lên kế hoạch sinh trước hoặc đúng 38 tuần.' },
+];
+
+function calculate() {
+  var err = document.getElementById('err-msg');
+  err.textContent = '';
+  var dateVal = document.getElementById('date-input').value.trim();
+  if (!dateVal) { err.textContent = 'Vui lòng nhập ngày.'; return; }
+
+  var inputDate = parseDate(dateVal);
+  if (!inputDate) { err.textContent = 'Ngày không hợp lệ. Vui lòng nhập đúng định dạng dd/mm/yyyy.'; return; }
+
+  var mode = document.getElementById('mode').value;
+  var lmp, due;
+  if (mode === 'lmp') {
+    var cycle = parseInt(document.getElementById('cycle').value) || 28;
+    lmp = inputDate;
+    due = addDays(lmp, 280 + (cycle - 28));
+  } else {
+    due = inputDate;
+    lmp = addDays(due, -280);
+  }
+
+  var today = new Date(); today.setHours(0,0,0,0);
+  var daysPreg = Math.floor((today - lmp) / 86400000);
+  var curWeek = Math.floor(daysPreg / 7);
+  var curDay = daysPreg % 7;
+
+  var milestones = document.getElementById('type').value === 'doi' ? M_DOI : M_DON;
+
+  var infoEl = document.getElementById('result-info');
+  var weekStr = (daysPreg >= 0 && curWeek <= 42)
+    ? 'Hiện tại: <strong>Tuần ' + curWeek + ' ngày ' + curDay + '</strong> &nbsp;|&nbsp; '
+    : '';
+  infoEl.innerHTML = weekStr + 'Ngày dự sinh: <strong>' + fmtFull(due) + '</strong>';
+
+  var tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+
+  milestones.forEach(function(m) {
+    var mDate = addDays(lmp, m.week * 7);
+    var isPast = mDate < today;
+    var isToday = fmtShort(mDate) === fmtShort(today);
+
+    var item = document.createElement('div');
+    item.className = 't-item';
+
+    var left = document.createElement('div');
+    left.className = 't-left';
+    var dot = document.createElement('div');
+    dot.className = 't-dot ' + m.dot;
+    var line = document.createElement('div');
+    line.className = 't-line';
+    left.appendChild(dot); left.appendChild(line);
+
+    var card = document.createElement('div');
+    card.className = 't-card' + (isPast && !isToday ? ' past' : '');
+
+    var head = document.createElement('div');
+    head.className = 't-head';
+    var titleEl = document.createElement('div');
+    titleEl.className = 't-title';
+    titleEl.textContent = m.title;
+    if (isToday) { var tb = document.createElement('span'); tb.className = 'today-tag'; tb.textContent = 'Hôm nay'; titleEl.appendChild(tb); }
+    var badge = document.createElement('span');
+    badge.className = 'wk-badge ' + m.badge;
+    badge.textContent = 'Tuần ' + m.week;
+    head.appendChild(titleEl); head.appendChild(badge);
+
+    var dateEl = document.createElement('div');
+    dateEl.className = 't-date';
+    dateEl.textContent = fmtFull(mDate) + (isPast && !isToday ? ' (đã qua)' : '');
+
+    var desc = document.createElement('div');
+    desc.className = 't-desc';
+    desc.textContent = m.desc;
+
+    card.appendChild(head); card.appendChild(dateEl); card.appendChild(desc);
+    item.appendChild(left); item.appendChild(card);
+    tl.appendChild(item);
+  });
+
+  document.getElementById('result').style.display = 'block';
+}
+
+</script>
+</body>
+</html>
